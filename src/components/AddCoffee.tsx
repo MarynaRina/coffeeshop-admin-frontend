@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ICoffee } from "../types/ICoffee";
+import { addCoffee } from "../services/coffeeServices";
 
 const AddCoffee = () => {
   const [coffee, setCoffee] = useState<ICoffee>({
@@ -10,43 +11,12 @@ const AddCoffee = () => {
     category: "hot",
   });
 
-  const [coffees, setCoffees] = useState<ICoffee[]>([]);
-
-  useEffect(() => {
-    fetchCoffees();
-  }, []);
-
-  const fetchCoffees = async () => {
-    try {
-      const response = await fetch("http://localhost:5001/get-coffees");
-
-      if (!response.ok) {
-        throw new Error(`HTTP Error! Status: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      console.log("Отримані дані:", data);
-
-      if (!Array.isArray(data)) {
-        throw new Error("Отримані дані не є масивом!");
-      }
-
-      setCoffees(data);
-    } catch (error) {
-      console.error("Помилка при отриманні кави:", error);
-      setCoffees([]); 
-    }
-  };
-
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ) => {
     const { name, value } = e.target;
-
-    // Переконливо перетворюємо `price` в число
     setCoffee((prev) => ({
       ...prev,
       [name]: name === "price" ? Number(value) : value,
@@ -56,144 +26,85 @@ const AddCoffee = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Перевіряємо, чи є `imageUrl` коректним URL
-    const urlPattern = new RegExp(
-      "^(https?:\\/\\/)?" + 
-        "((([a-zA-Z\\d]([a-zA-Z\\d-]*[a-zA-Z\\d])*)\\.)+[a-zA-Z]{2,}|" + 
-        "localhost|" + 
-        "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|" + 
-        "\\[?[a-fA-F\\d:]+\\]?)" + 
-        "(\\:\\d+)?(\\/[-a-zA-Z\\d%_.~+]*)*" + 
-        "(\\?[;&a-zA-Z\\d%_.~+=-]*)?" + 
-        "(\\#[-a-zA-Z\\d_]*)?$",
-      "i"
-    );
+    const success = await addCoffee(coffee);
 
-    if (!urlPattern.test(coffee.imageUrl)) {
-      alert("Некоректне посилання на зображення!");
-      return;
-    }
-
-    try {
-      const response = await fetch("http://localhost:5001/add-coffee", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...coffee,
-          price: Number(coffee.price), // 🔥 Перетворюємо price в число перед відправкою
-        }),
+    if (success) {
+      alert("Coffee added successfully!");
+      setCoffee({
+        name: "",
+        price: 0,
+        imageUrl: "",
+        description: "",
+        category: "hot",
       });
-
-      if (response.ok) {
-        alert("Каву додано успішно!");
-        setCoffee({
-          name: "",
-          price: 0,
-          imageUrl: "",
-          description: "",
-          category: "hot",
-        });
-        fetchCoffees(); 
-      } else {
-        const errorData = await response.json();
-        alert(errorData.message);
-      }
-    } catch (error) {
-      console.error("Помилка:", error);
+    } else {
+      alert("Failed to add coffee.");
     }
   };
 
   return (
-    <div className="max-w-md mx-auto">
-      <form
-        onSubmit={handleSubmit}
-        className="p-6 bg-white shadow-md rounded-lg"
-      >
-        <h2 className="text-xl font-bold mb-4">Додати каву</h2>
+    <div className="max-w-md mx-auto bg-light p-6 rounded-lg shadow-md mt-6">
+      <h2 className="text-2xl font-bold text-secondary mb-4 text-center text-coffee-400">
+        Add New Coffee
+      </h2>
 
+      <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="text"
           name="name"
           value={coffee.name}
           onChange={handleChange}
-          placeholder="Назва кави"
-          className="w-full p-2 mb-3 border rounded"
+          placeholder="Coffee name"
+          className="w-full p-3 rounded-full border border-accent focus:outline-none focus:ring-1 focus:ring-secondary"
           required
         />
+
         <input
           type="number"
           name="price"
           value={coffee.price}
           onChange={handleChange}
-          placeholder="Ціна"
-          className="w-full p-2 mb-3 border rounded"
+          placeholder="Price"
+          className="w-full p-3 rounded-full border border-accent focus:outline-none focus:ring-1 focus:ring-secondary"
           required
         />
+
         <input
           type="text"
           name="imageUrl"
           value={coffee.imageUrl}
           onChange={handleChange}
-          placeholder="Посилання на зображення"
-          className="w-full p-2 mb-3 border rounded"
+          placeholder="Image URL"
+          className="w-full p-3 rounded-full border border-accent focus:outline-none focus:ring-1 focus:ring-secondary"
           required
         />
+
         <textarea
           name="description"
           value={coffee.description}
           onChange={handleChange}
-          placeholder="Опис кави"
-          className="w-full p-2 mb-3 border rounded"
+          placeholder="Coffee description"
+          className="w-full p-3 rounded-lg border border-accent focus:outline-none focus:ring-1 focus:ring-secondary"
         ></textarea>
 
         <select
           name="category"
           value={coffee.category}
           onChange={handleChange}
-          className="w-full p-2 mb-3 border rounded bg-white"
+          className="w-full p-3 rounded-full border border-accent bg-white focus:outline-none focus:ring-1 focus:ring-secondary"
         >
-          <option value="hot">Гаряча</option>
-          <option value="cold">Холодна</option>
-          <option value="others">Інша</option>
+          <option value="hot">Hot</option>
+          <option value="cold">Cold</option>
+          <option value="others">Other</option>
         </select>
 
         <button
           type="submit"
-          className="w-full bg-blue-500 text-white p-2 rounded"
+          className="w-full bg-coffee-500 text-amber-950 cursor-pointer p-3 rounded-full font-bold hover:bg-primary transition"
         >
-          Додати каву
+          Add Coffee
         </button>
       </form>
-
-      <div className="mt-6">
-        <h2 className="text-xl font-bold mb-4">Список кави</h2>
-
-        {Array.isArray(coffees) && coffees.length > 0 ? (
-          coffees.map((c) => (
-            <div
-              key={c.id}
-              className="p-4 bg-gray-100 mb-3 rounded-lg flex items-center gap-4"
-            >
-              {/* Додаємо зображення кави */}
-              <img
-                src={c.imageUrl}
-                alt={c.name}
-                className="w-24 h-24 object-cover rounded-lg"
-              />
-
-              {/* Текстова інформація */}
-              <div>
-                <h3 className="text-lg font-bold">{c.name}</h3>
-                <p>Ціна: {Number(c.price)} грн</p> {/* 🔥 Відображаємо як число */}
-                <p>Категорія: {c.category}</p>
-                <p>{c.description}</p>
-              </div>
-            </div>
-          ))
-        ) : (
-          <p>Кави поки немає...</p>
-        )}
-      </div>
     </div>
   );
 };
